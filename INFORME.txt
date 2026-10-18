@@ -1,0 +1,93 @@
+===============================================================================
+ INFORME: ESTRATEGIA DE AUTOMATIZACIÓN Y PATRONES UTILIZADOS
+===============================================================================
+
+-------------------------------------------------------------------------------
+ 1. ALCANCE
+-------------------------------------------------------------------------------
+
+La suite cubre la historia de usuario completa de Sauce Demo: iniciar
+sesión, agregar productos al carrito y completar una compra. Los 5 criterios
+de aceptación se automatizaron en 14 escenarios repartidos en tres features
+(login, carrito y compra), con dos tipos de usuario: standard_user y
+locked_out_user.
+
+
+-------------------------------------------------------------------------------
+ 2. ESTRATEGIA
+-------------------------------------------------------------------------------
+
+BDD con Gherkin declarativo
+  Los escenarios describen QUÉ hace el cliente y no CÓMO interactúa con la
+  interfaz ("agrega el producto al carrito", no "hace clic en el botón
+  #add-to-cart"). Así los features sirven como documentación viva legible
+  por negocio, y un cambio en la interfaz solo afecta a los Page Objects.
+
+Escenarios positivos y negativos
+  Además del flujo feliz, se valida:
+  - Acceso denegado al usuario bloqueado y con credenciales inválidas o
+    vacías, comprobando el mensaje de error exacto.
+  - Eliminación de productos del carrito.
+  - Validación de los campos obligatorios del formulario de envío.
+  - Coherencia de montos en el resumen: el subtotal es la suma de los
+    precios y el total es el subtotal más los impuestos.
+
+Pruebas orientadas a datos
+  Los casos que solo difieren en datos se expresan con Scenario Outline
+
+Precondiciones con Background
+
+Aislamiento
+  Cada escenario abre un navegador nuevo (hook Before) y lo cierra al
+  terminar (hook After)
+
+Estabilidad
+  - Selectores basados en los atributos data-test de la aplicación, que no
+    dependen de estilos ni de la estructura del DOM.
+  - Aserciones "web-first" de Playwright (expect(locator).toHaveText(...)),
+    que esperan automáticamente al elemento, sin esperas fijas.
+  - Al navegar entre páginas se verifica el título de la página destino
+    antes de continuar.
+
+Diagnóstico
+  Cada ejecución genera un reporte HTML (reports/cucumber-report.html)
+
+-------------------------------------------------------------------------------
+ 3. PATRONES DE DISEÑO
+-------------------------------------------------------------------------------
+
+Page Object Model (POM)
+  Cada página de la aplicación tiene su propia clase en features/src/pages.
+  La clase encapsula los localizadores (propiedades readonly) y expone las
+  acciones de negocio como métodos (iniciarSesion, agregarProductoAlCarrito,
+  finalizarCompra, ...). Los step definitions no contienen selectores y las
+  aserciones se mantienen en los steps, no en las páginas.
+
+Herencia (Base Page)
+  BasePage agrupa los elementos comunes a las páginas (título y carrito de
+  la cabecera). El resto de las páginas la extienden y evitan duplicar
+  código.
+
+World (contexto compartido)
+  CustomWorld es la instancia por escenario que Cucumber inyecta en cada
+  step. Contiene el navegador, la página, los Page Objects y el estado del
+  escenario (productos agregados), así los steps se comunican sin variables
+  globales.
+
+Datos de prueba centralizados
+  Las credenciales están en features/src/data/users.ts, con un único punto
+  de cambio.
+
+-------------------------------------------------------------------------------
+ 4. CONVENCIÓN DE NOMBRES
+-------------------------------------------------------------------------------
+
+Español: el lenguaje de negocio, es decir, los textos Gherkin (features,
+escenarios y steps), los métodos de acción de los Page Objects (abrirLogin,
+iniciarSesion, irAlCheckout) y los encabezados de las tablas de datos.
+
+Inglés: los elementos técnicos, es decir, las clases y archivos de código,
+los localizadores (usernameInput, checkoutButton), los parámetros y las
+propiedades del World. Esto sigue el idioma de la propia aplicación, cuya
+interfaz está en inglés, y las convenciones de TypeScript y Playwright.
+
